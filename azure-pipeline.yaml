@@ -1,0 +1,69 @@
+trigger:
+  branches:
+    include:
+      - develop
+      - release/qa
+  tags:
+    exclude:
+      - '*'   # Prevent infinite loop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - checkout: self
+    persistCredentials: true
+    fetchDepth: 0
+
+  # Step 1: Check commit message
+  - script: |
+      COMMIT_MSG=$(git log -1 --pretty=%B)
+      echo "Commit message: $COMMIT_MSG"
+
+      if [[ "$COMMIT_MSG" != *"[tag]"* ]]; then
+        echo "##vso[task.setvariable variable=CREATE_TAG]false"
+      else
+        echo "##vso[task.setvariable variable=CREATE_TAG]true"
+      fi
+    displayName: "Check commit message"
+
+  # Step 2: Fetch latest tag
+  - script: |
+      git fetch --tags
+      latest_tag=$(git tag --sort=-v:refname | head -n 1)
+
+      if [ -z "$latest_tag" ]; then
+        latest_tag="v0.0.0"
+      fi
+
+      echo "Latest tag: $latest_tag"
+      echo "##vso[task.setvariable variable=LATEST_TAG]$latest_tag"
+    condition: eq(variables.CREATE_TAG, 'true')
+    displayName: "Fetch latest tag"
+
+  # Step 3: Increment semantic version (patch)
+  - script: |
+      tag=$(LATEST_TAG)
+      version=${tag#v}
+
+      IFS='.' read -r major minor patch <<< "$version"
+      patch=$((patch + 1))
+
+      new_tag="v$major.$minor.$patch"
+
+      echo "New tag: $new_tag"
+      echo "##vso[task.setvariable variable=NEW_TAG]$new_tag"
+    condition: eq(variables.CREATE_TAG, 'true')
+    displayName: "Increment version"
+
+  # Step 4: Create and push tag
+  - script: |
+      git config user.name "azure-pipelines"
+      git config user.email "azure-pipelines@dev.azure.com"
+
+      git tag $(NEW_TAG)
+      git push https://$(GITHUB_PAT)@github.com/<org>/<repo>.git $(NEW_TAG)
+    condition: eq(variables.CREATE_TAG, 'true')
+    displayName: "Create and push tag"
+    env:
+      GITHUB_PAT: $(GITHUB_PAT)
