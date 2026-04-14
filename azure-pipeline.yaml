@@ -43,7 +43,7 @@ steps:
 
   # Step 3: Increment semantic version (patch)
   - script: |
-      tag=$(LATEST_TAG)
+      tag=$LATEST_TAG
       version=${tag#v}
 
       IFS='.' read -r major minor patch <<< "$version"
@@ -61,8 +61,12 @@ steps:
       git config user.name "azure-pipelines"
       git config user.email "azure-pipelines@dev.azure.com"
 
-      git tag $(NEW_TAG)
-      git push https://$(GITHUB_PAT)@github.com/<org>/<repo>.git $(NEW_TAG)
+      echo "Tag to create: $NEW_TAG"
+
+      git remote set-url origin https://$GITHUB_PAT@github.com/<org>/<repo>.git
+
+      git tag $NEW_TAG
+      git push origin $NEW_TAG
     condition: eq(variables.CREATE_TAG, 'true')
     displayName: "Create and push tag"
     env:
