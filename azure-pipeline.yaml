@@ -8,7 +8,7 @@ trigger:
       - '*'   # Prevent infinite loop
 
 pool:
-  vmImage: 'SHA'
+  name: 'SHA'
 
 steps:
   - checkout: self
