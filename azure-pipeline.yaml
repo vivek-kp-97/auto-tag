@@ -8,7 +8,7 @@ trigger:
       - '*'   # Prevent infinite loop
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'SHA'
 
 steps:
   - checkout: self
